@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>หวยชุดพารวย</title>
+
+  <style>
+    body {
+  font-family: sans-serif;
+  padding: 20px;
+}
+
+#numberGrid {
+  display: grid;
+  grid-template-columns: repeat(10, 40px);
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.number {
+  border: 1px solid #ccc;
+  padding: 8px 0;
+  text-align: center;
+  border-radius: 5px;
+  cursor: pointer;
+  background: #f9f9f9;
+  user-select: none;
+}
+
+.number.selected {
+  background-color: orange;
+  color: white;
+  font-weight: bold;
+}
+
+.number.highlight-pink {
+  box-shadow: inset 0 0 0 3px pink;
+}
+
+.selected-tag {
+  background-color: #ffa500;
+  color: #fff;
+  padding: 3px 8px;
+  margin: 2px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.number-set {
+  margin-bottom: 5px;
+}
+
+.saved-entry {
+  margin-bottom: 15px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 10px;
+}
+
+  </style>
+
+  
+</head>
+<body>
+  <div id="expiredMessage" style="display:none; text-align:center; margin-top:100px; font-size:24px; color:red">
+  ❌ ไฟล์นี้หมดอายุแล้ว<br><br>กรุณาติดต่อผู้พัฒนาเพื่อขอเวอร์ชันใหม่
+</div>
+
+<div id="mainContent">
+  <h2>🎯 เลขชุดนำโชค</h2>
+  <h3>🎯 เลือกเลขได้ 4 คู่ ราคา 500 / ถูกรางวัลรับ 5,000</h3>
+  <h2>🎯 อ้างอิงหวยรัฐบาล 2 ตัวล่าง</h2>
+  <h3 id="lotteryDate">งวดวันที่ 31 ก.ค 68</h3>
+  <div id="numberGrid"></div>
+
+  <h3>📌 ชุดที่เลือก:</h3>
+  <div id="selectedNumbers">— ยังไม่เลือกเลข —</div>
+
+  <h3>📋 รายการบันทึก:</h3>
+  <div id="savedResults">— ยังไม่มีข้อมูล —</div>
+
+  <button onclick="removeLastSet()">❌ ลบชุดล่าสุด</button>
+  <button onclick="showPasswordPopup()">🔄 Reset</button>
+
+  <div id="passwordPopup" style="display:none; position:fixed; top:30%; left:50%; transform:translate(-50%, -30%);
+      background:#fff; padding:20px; border:1px solid #ccc; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.2); z-index:9999;">
+    <h3>🔐 ใส่รหัสผ่านเพื่อ Reset</h3>
+    <input type="password" id="passwordInput" placeholder="กรอกรหัสผ่าน" />
+    <div style="text-align:right;">
+      <button onclick="checkPassword()">✅ ยืนยัน</button>
+      <button onclick="closePasswordPopup()">❌ ยกเลิก</button>
+    </div>
+  </div>
+
+  <div id="namePopup" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+    background:#fff; border:1px solid #ccc; padding:20px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.3); z-index:10000;">
+    <h3>กรุณาใส่ชื่อผู้ซื้อ</h3>
+    <input type="text" id="buyerNameInput" placeholder="ชื่อผู้ซื้อ" style="width:100%; padding:8px; margin-bottom:10px;" />
+    <div style="text-align:right;">
+      <button onclick="saveBuyerName()">บันทึก</button>
+      <button onclick="closeNamePopup()">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+
+  <script>
+    (function checkExpiry() {
+  const expireDate = new Date("2025-08-01T23:59:59");
+  if (new Date() > expireDate) {
+    document.body.innerHTML = `<div style="text-align:center; margin-top:100px; font-size:24px; color:red">
+      ❌ ไฟล์นี้หมดอายุแล้ว<br><br>กรุณาติดต่อผู้พัฒนาเพื่อขอเวอร์ชันใหม่</div>`;
+    throw new Error("หมดอายุการใช้งาน");
+  }
+})();
+
+document.addEventListener("contextmenu", e => {
+  e.preventDefault();
+  alert("🚫 ไม่อนุญาตให้คลิกขวา");
+});
+document.addEventListener("keydown", e => {
+  if (
+    e.key === "F12" ||
+    (e.ctrlKey && e.shiftKey && ["I", "C", "J"].includes(e.key)) ||
+    (e.ctrlKey && e.key.toLowerCase() === "u")
+  ) {
+    e.preventDefault();
+    alert("🚫 ไม่อนุญาตให้เปิด Developer Tools หรือดูซอร์สโค้ด");
+  }
+});
+
+const linkedNumbers = {};
+const selectedSet = new Set();
+const selectedSets = [];
+const savedEntries = [];
+let tempDoubleSet = [];
+
+for (let i = 0; i < 100; i++) {
+  const num = i.toString().padStart(2, '0');
+  const reversed = num[1] + num[0];
+  linkedNumbers[num] = linkedNumbers[num] || [];
+  if (num !== reversed) linkedNumbers[num].push(reversed);
+}
+
+function createGrid() {
+  const grid = document.getElementById("numberGrid");
+  grid.innerHTML = "";
+  for (let i = 0; i < 100; i++) {
+    const num = i.toString().padStart(2, '0');
+    const div = document.createElement("div");
+    div.classList.add("number");
+    div.textContent = num;
+    div.id = `num-${num}`;
+    div.addEventListener("click", () => onNumberClick(num));
+    grid.appendChild(div);
+  }
+}
+
+function onNumberClick(num) {
+  const isDouble = num[0] === num[1];
+  const reversed = num[1] + num[0];
+
+  if (isDouble) {
+    if (selectedSet.has(num) || tempDoubleSet.includes(num)) {
+      alert(`❌ เลขเบิ้ล ${num} ถูกเลือกแล้ว`);
+      return;
+    }
+
+    tempDoubleSet.push(num);
+    document.getElementById(`num-${num}`).classList.add("selected");
+    highlightRemainingDoubleNumbers();
+
+    if (tempDoubleSet.length === 2) {
+      if (selectedSets.length >= 4) {
+        alert("คุณเลือกครบ 4 ชุดแล้ว");
+        tempDoubleSet = [];
+        highlightRemainingDoubleNumbers();
+        return;
+      }
+
+      const newSet = [...tempDoubleSet];
+      newSet.forEach(n => selectedSet.add(n));
+      selectedSets.push(newSet);
+      tempDoubleSet = [];
+
+      updateGridSelection();
+      updateSelectedDisplay();
+      saveToStorage();
+      highlightRemainingDoubleNumbers();
+      checkIfCompleted();
+    } else {
+      updateSelectedDisplay();
+      alert(`✅ เลือก ${num} แล้ว กรุณาเลือกเลขเบิ้ลอีกตัวเพื่อเป็น 1 คู่`);
+    }
+
+  } else {
+    if (selectedSet.has(num) || selectedSet.has(reversed)) {
+      alert(`❌ เลข ${num} หรือ ${reversed} ถูกเลือกแล้ว`);
+      return;
+    }
+
+    if (selectedSets.length >= 4) {
+      alert("คุณเลือกครบ 4 ชุดแล้ว");
+      return;
+    }
+
+    const newSet = [num, reversed];
+    newSet.forEach(n => selectedSet.add(n));
+    selectedSets.push(newSet);
+
+    updateGridSelection();
+    updateSelectedDisplay();
+    saveToStorage();
+    checkIfCompleted();
+  }
+}
+
+function highlightRemainingDoubleNumbers() {
+  document.querySelectorAll(".number.highlight-pink").forEach(el => el.classList.remove("highlight-pink"));
+
+  if (tempDoubleSet.length !== 1) return;
+
+  for (let i = 0; i < 100; i++) {
+    const num = i.toString().padStart(2, '0');
+    if (num[0] === num[1] && !selectedSet.has(num) && !tempDoubleSet.includes(num)) {
+      const el = document.getElementById(`num-${num}`);
+      if (el) el.classList.add("highlight-pink");
+    }
+  }
+}
+
+function updateGridSelection() {
+  const allSelectedNumbers = new Set();
+
+  selectedSet.forEach(n => allSelectedNumbers.add(n));
+  savedEntries.forEach(entry => entry.numbers.forEach(n => allSelectedNumbers.add(n)));
+
+  document.querySelectorAll(".number").forEach(el => {
+    el.classList.toggle("selected", allSelectedNumbers.has(el.textContent));
+  });
+}
+
+function checkIfCompleted() {
+  if (selectedSets.length === 4) {
+    showNamePopup();
+  }
+}
+
+function showNamePopup() {
+  document.getElementById("namePopup").style.display = "block";
+  const input = document.getElementById("buyerNameInput");
+  input.value = "";
+  input.focus();
+}
+
+function closeNamePopup() {
+  document.getElementById("namePopup").style.display = "none";
+}
+
+function saveBuyerName() {
+  const input = document.getElementById("buyerNameInput");
+  const name = input.value.trim();
+  const dateText = document.getElementById("lotteryDate").textContent;//เพิ่มตรงนี้
+  
+  if (!name) {
+    alert("❗ โปรดใส่ชื่อผู้ซื้อให้ครบ");
+    input.focus();
+    return;
+  }
+
+  savedEntries.push({
+    name: name + " (" + dateText + ")",// เพิ่มวันที่ในชื่อ
+    numbers: [...selectedSet].sort(),
+    sets: JSON.parse(JSON.stringify(selectedSets))
+  });
+
+  selectedSets.length = 0;
+  selectedSet.clear();
+  tempDoubleSet = [];
+
+  updateGridSelection();
+  updateSelectedDisplay();
+  updateSavedResults();
+  saveToStorage();
+
+  alert(`✅ บันทึกเรียบร้อยให้ "${name}" แล้ว`);
+  closeNamePopup();
+}
+
+function updateSelectedDisplay() {
+  const container = document.getElementById("selectedNumbers");
+  container.innerHTML = selectedSets.length === 0 ? "— ยังไม่เลือกเลข —" : "";
+  selectedSets.forEach(set => {
+    const setDiv = document.createElement("div");
+    setDiv.classList.add("number-set");
+    set.forEach(num => {
+      const tag = document.createElement("span");
+      tag.className = "selected-tag";
+      tag.textContent = num;
+      setDiv.appendChild(tag);
+    });
+    container.appendChild(setDiv);
+  });
+}
+
+function updateSavedResults() {
+  const container = document.getElementById("savedResults");
+  container.innerHTML = savedEntries.length === 0 ? "— ยังไม่มีข้อมูล —" : "";
+  savedEntries.forEach((entry, index) => {
+    const div = document.createElement("div");
+    div.className = "saved-entry";
+    div.innerHTML = `<strong>${index + 1}. ${entry.name}:</strong>`;
+    entry.sets.forEach(set => {
+      const row = document.createElement("div");
+      set.forEach(num => {
+        const tag = document.createElement("span");
+        tag.className = "selected-tag";
+        tag.textContent = num;
+        row.appendChild(tag);
+      });
+      div.appendChild(row);
+    });
+    container.appendChild(div);
+  });
+}
+
+function removeLastSet() {
+  if (selectedSets.length === 0) {
+    alert("❗ ยังไม่มีเลขชุดให้ลบ");
+    return;
+  }
+  const last = selectedSets.pop();
+  last.forEach(n => selectedSet.delete(n));
+  tempDoubleSet = [];
+  highlightRemainingDoubleNumbers();
+  updateGridSelection();
+  updateSelectedDisplay();
+  saveToStorage();
+}
+
+function showPasswordPopup() {
+  document.getElementById("passwordPopup").style.display = "block";
+  document.getElementById("passwordInput").value = "";
+  document.getElementById("passwordInput").focus();
+}
+
+function closePasswordPopup() {
+  document.getElementById("passwordPopup").style.display = "none";
+}
+
+function checkPassword() {
+  const input = document.getElementById("passwordInput").value;
+  if (input !== "13579") {
+    alert("❌ รหัสผ่านไม่ถูกต้อง");
+    return;
+  }
+
+  if (confirm("คุณแน่ใจหรือไม่ว่าต้องการ Reset การเลือกทั้งหมด?")) {
+    selectedSet.clear();
+    selectedSets.length = 0;
+    savedEntries.length = 0;
+    tempDoubleSet = [];
+    localStorage.clear();
+    updateGridSelection();
+    updateSelectedDisplay();
+    updateSavedResults();
+    alert("✅ ล้างข้อมูลทั้งหมดเรียบร้อยแล้ว");
+  }
+
+  closePasswordPopup();
+}
+
+function saveToStorage() {
+  localStorage.setItem("savedEntries", JSON.stringify(savedEntries));
+  localStorage.setItem("selectedSet", JSON.stringify([...selectedSet]));
+  localStorage.setItem("selectedSets", JSON.stringify(selectedSets));
+}
+
+window.onload = function () {
+  createGrid();
+  const saved = localStorage.getItem("savedEntries");
+  const selSet = localStorage.getItem("selectedSet");
+  const selSets = localStorage.getItem("selectedSets");
+
+  if (saved) savedEntries.push(...JSON.parse(saved));
+  if (selSet) JSON.parse(selSet).forEach(n => selectedSet.add(n));
+  if (selSets) selectedSets.push(...JSON.parse(selSets));
+
+  updateGridSelection();
+  updateSelectedDisplay();
+  updateSavedResults();
+};
+
+  </script>
+</body>
+</html>
