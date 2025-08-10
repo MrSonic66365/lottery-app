@@ -108,7 +108,7 @@
 
   <script>
     (function checkExpiry() {
-  const expireDate = new Date("2025-08-01T23:59:59");
+  const expireDate = new Date("2026-08-01T23:59:59");
   if (new Date() > expireDate) {
     document.body.innerHTML = `<div style="text-align:center; margin-top:100px; font-size:24px; color:red">
       ❌ ไฟล์นี้หมดอายุแล้ว<br><br>กรุณาติดต่อผู้พัฒนาเพื่อขอเวอร์ชันใหม่</div>`;
@@ -392,6 +392,7 @@ window.onload = function () {
   updateSelectedDisplay();
   updateSavedResults();
 };
+
 
   </script>
 </body>
